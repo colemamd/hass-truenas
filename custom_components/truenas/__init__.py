@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 import async_timeout
 import voluptuous as vol
 from aiotruenas_client import CachingMachine as Machine
+from aiotruenas_client.websockets.dataset import CachingDataset
 from aiotruenas_client.websockets.disk import CachingDisk
 from aiotruenas_client.websockets.jail import CachingJail
 from aiotruenas_client.websockets.pool import CachingPool
@@ -74,6 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             async with async_timeout.timeout(TIMEOUT):
                 try:
                     await asyncio.gather(
+                        machine.get_datasets(),
                         machine.get_disks(include_temperature=True),
                         machine.get_jails(),
                         machine.get_pools(),
@@ -205,6 +207,45 @@ class TrueNASSensor(TrueNASEntity):
     def state(self) -> Any:
         """Return the state of the sensor."""
         return self._get_state()
+
+
+class TrueNASDatasetEntity:
+    """Represents a dataset on the TrueNAS host."""
+
+    _dataset: Optional[CachingDataset] = None
+
+    @property
+    def available(self) -> bool:
+        assert self._dataset is not None
+        return self._dataset.available
+
+    @property
+    def device_info(self):
+        assert self._dataset is not None
+        return {
+            "identifiers": {
+                (DOMAIN, slugify(self._dataset.id)),
+            },
+            "name": self._dataset.id,
+            "manufacturer": f"TrueNAS",
+        }
+
+    @property
+    def entity_registry_enabled_default(self):
+        """Disable new entities by default."""
+        return False
+
+    @property
+    def unique_id(self):
+        assert self._dataset is not None
+        return slugify(self._dataset.id)
+
+    def _get_comments(self):
+        assert self._dataset is not None
+        if self._dataset.comments:
+            value = self._dataset.comments.parsedValue
+            return value
+        return None
 
 
 class TrueNASDiskEntity:

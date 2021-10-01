@@ -1,6 +1,7 @@
 from typing import Any, Callable, List, Mapping, Optional
 
 from aiotruenas_client import CachingMachine as Machine
+from aiotruenas_client.dataset import Dataset
 from aiotruenas_client.disk import Disk, DiskType
 from aiotruenas_client.pool import Pool
 from homeassistant.components.sensor import DEVICE_CLASS_TEMPERATURE
@@ -12,8 +13,20 @@ from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import slugify
 
-from . import TrueNASDiskEntity, TrueNASPoolEntity, TrueNASSensor
-from .const import ATTR_POOL_GUID, ATTR_POOL_NAME, DOMAIN
+from . import TrueNASDatasetEntity, TrueNASDiskEntity, TrueNASPoolEntity, TrueNASSensor
+from .const import (
+    ATTR_DS_AVAIL_BYTES,
+    ATTR_DS_COMMENTS,
+    ATTR_DS_COMP_RATIO,
+    ATTR_DS_NAME,
+    ATTR_DS_POOL_NAME,
+    ATTR_DS_TOTAL_BYTES,
+    ATTR_DS_TYPE,
+    ATTR_DS_USED_BYTES,
+    ATTR_POOL_GUID,
+    ATTR_POOL_NAME,
+    DOMAIN,
+)
 
 
 async def async_setup_entry(
@@ -45,7 +58,59 @@ def _create_entities(hass: HomeAssistant, entry: ConfigEntry) -> List[Entity]:
     for pool in machine.pools:
         entities.append(PoolSensor(entry, name, pool, coordinator))
 
+    for dataset in machine.datasets:
+        entities.append(DatasetSensor(entry, name, dataset, coordinator))
+
     return entities
+
+
+class DatasetSensor(TrueNASDatasetEntity, TrueNASSensor, Entity):
+    _dataset: Dataset
+
+    def __init__(
+        self,
+        entry: ConfigEntry,
+        name: str,
+        dataset: Dataset,
+        coordinator: DataUpdateCoordinator,
+    ) -> None:
+        self._dataset = dataset
+        super().__init__(entry, name, coordinator)
+
+    @property
+    def name(self) -> str:
+        """Return the name of the dataset."""
+        return f"{self._dataset.pool_name + self._dataset.id} Dataset"
+
+    @property
+    def unique_id(self):
+        """Return the Unique ID of the dataset."""
+        return slugify(self._dataset.id)
+
+    @property
+    def extra_state_attributes(self):
+        """Return extra Pool attributes"""
+        assert self._dataset is not None
+        value = self._get_comments()
+        return {
+            ATTR_DS_NAME: f"{self._dataset.id}",
+            ATTR_DS_POOL_NAME: f"{self._dataset.pool_name}",
+            ATTR_DS_COMMENTS: f"{value}",
+            ATTR_DS_TYPE: f"{self._dataset.type.name}",
+            ATTR_DS_COMP_RATIO: f"{self._dataset.compression_ratio}",
+            ATTR_DS_AVAIL_BYTES: f"{self._dataset.available_bytes}",
+            ATTR_DS_USED_BYTES: f"{self._dataset.used_bytes}",
+            ATTR_DS_TOTAL_BYTES: f"{self._dataset.total_bytes}",
+        }
+
+    @property
+    def icon(self):
+        """Return an icon for the dataset."""
+        return "mdi:file-cabinet"
+
+    def _get_state(self):
+        """Returns the status of the dataset."""
+        return self.available
 
 
 class DiskTemperatureSensor(TrueNASDiskEntity, TrueNASSensor, Entity):

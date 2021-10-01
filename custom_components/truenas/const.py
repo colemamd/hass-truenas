@@ -4,6 +4,14 @@ from homeassistant.helpers import config_validation as cv
 
 DOMAIN = "truenas"
 
+ATTR_DS_AVAIL_BYTES = "Available Bytes"
+ATTR_DS_COMMENTS = "Dataset Comments"
+ATTR_DS_COMP_RATIO = "Compression Ratio"
+ATTR_DS_NAME = "Dataset"
+ATTR_DS_POOL_NAME = "Dataset Pool"
+ATTR_DS_TOTAL_BYTES = "Total Bytes"
+ATTR_DS_TYPE = "Dataset Type"
+ATTR_DS_USED_BYTES = "Used Bytes"
 ATTR_ENCRYPT = "Encrypted"
 ATTR_POOL_GUID = "GUID"
 ATTR_POOL_NAME = "Pool Name"
