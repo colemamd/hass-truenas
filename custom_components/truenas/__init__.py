@@ -2,6 +2,7 @@
 import abc
 import asyncio
 import logging
+from atexit import register
 from datetime import timedelta
 from enum import Enum, unique
 from typing import Any, Dict, Optional
@@ -21,8 +22,9 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_USERNAME,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Config, HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import slugify
@@ -34,6 +36,9 @@ from .const import (
     CONF_AUTH_PASSWORD,
     DEFAULT_SCAN_INTERVAL_SECONDS,
     DOMAIN,
+    HOST_SERVICES,
+    SERVICE_REBOOT,
+    SERVICE_SHUTDOWN,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,6 +114,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             hass.config_entries.async_forward_entry_setup(entry, component)
         )
 
+    device_registry = dr.async_get(hass)
+
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, CONF_HOST)},
+        manufacturer="TrueNAS",
+        name=entry.title,
+    )
+
+    await _async_setup_services(hass, entry)
+
     return True
 
 
@@ -147,6 +163,28 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     _LOGGER.info("Migration to version %s successful", config_entry.version)
 
     return True
+
+
+def _get_machine(hass: HomeAssistant, entry: ConfigEntry) -> Machine:
+    machine = hass.data[DOMAIN][entry.entry_id]["machine"]
+    assert machine is not None
+    return machine
+
+
+async def _async_setup_services(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Setup services for Truenas host."""
+    machine = _get_machine(hass, entry)
+    assert machine is not None
+
+    async def service_handler(call: ServiceCall):
+        """Handle the service call."""
+        if call.service == SERVICE_REBOOT:
+            await machine.invoke_method("system.reboot")
+        elif call.service == SERVICE_SHUTDOWN:
+            await machine.invoke_method("system.shutdown")
+
+    for service in HOST_SERVICES:
+        hass.services.async_register(DOMAIN, service, service_handler)
 
 
 class TrueNASEntity(RestoreEntity):
@@ -247,7 +285,7 @@ class TrueNASPoolEntity:
                 (DOMAIN, slugify(self._pool.guid)),
             },
             "name": self._pool.name,
-            "manufacturer": f"TrueNAS",
+            "manufacturer": "TrueNAS",
         }
 
     @property

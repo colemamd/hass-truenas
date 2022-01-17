@@ -1,4 +1,20 @@
 ---
+host_reboot:
+  description: Reboot the host
+  fields:
+    entity_id:
+      description: Sensor entity id for the host
+      example: "sensor.host_name"
+      required: true
+
+host_shutdown:
+  description: Shutdown the host
+  fields:
+    entity_id:
+      description: Sensor entity id for the host
+      example: "sensor.host_name"
+      required: true
+
 jail_start:
   description: Start a jail
   fields:

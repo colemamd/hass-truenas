@@ -24,6 +24,13 @@ SCHEMA_SERVICE_JAIL_STOP = {
 SERVICE_JAIL_RESTART = "jail_restart"
 SCHEMA_SERVICE_JAIL_RESTART = {}
 
+SERVICE_REBOOT = "host_reboot"
+SERVICE_SHUTDOWN = "host_shutdown"
+HOST_SERVICES = [
+    SERVICE_REBOOT,
+    SERVICE_SHUTDOWN,
+]
+
 SERVICE_VM_START = "vm_start"
 SCHEMA_SERVICE_VM_START = {
     vol.Optional("overcommit"): cv.boolean,
